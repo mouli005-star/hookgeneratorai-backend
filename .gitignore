@@ -1,0 +1,13 @@
+# Python dependencies
+venv/
+__pycache__/
+*.pyc
+
+# Environment Secrets (CRITICAL)
+.env
+firebase-adminsdk.json
+
+# IDE / System
+.vscode/
+.idea/
+.DS_Store
