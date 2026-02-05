@@ -13,8 +13,8 @@ class AIService:
             if self.api_key != "":
                  self.api_key = None
         
-        # Use a proven, reliable model that works well for text generation
-        self.api_url = "https://api-inference.huggingface.co/models/google/flan-t5-large"
+        # Use the NEW HuggingFace router endpoint (api-inference.huggingface.co is deprecated)
+        self.api_url = "https://router.huggingface.co/models/google/flan-t5-large"
         
         print(f"✅ AIService initialized. Token available: {bool(self.api_key)}")
 
