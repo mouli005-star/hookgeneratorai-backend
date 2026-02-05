@@ -13,12 +13,13 @@ class AIService:
             if self.api_key != "":
                  self.api_key = None
         
-        # Use HuggingFace Router API (api-inference.huggingface.co is deprecated)
+        # Use HuggingFace Inference API with REAL model IDs
+        # Format: https://api-inference.huggingface.co/models/{MODEL_ID}
         # Option 1: FLAN-T5 (faster, smaller) - uncomment to use
-        # self.api_url = "https://router.huggingface.co/models/google/flan-t5-large"
+        # self.api_url = "https://api-inference.huggingface.co/models/google/flan-t5-large"
         
         # Option 2: Mistral-7B (better quality, slower) - currently active
-        self.api_url = "https://router.huggingface.co/models/mistralai/Mistral-7B-Instruct-v0.2"
+        self.api_url = "https://api-inference.huggingface.co/models/mistralai/Mistral-7B-Instruct-v0.2"
         
         print(f"✅ AIService initialized. Token available: {bool(self.api_key)}")
 
@@ -63,7 +64,8 @@ Make it more compelling, add hooks, and optimize for social media engagement."""
         }
 
         try:
-            print(f"   → Calling HuggingFace API for '{prompt[:30]}...'")
+            print(f"   → Calling HuggingFace API: {self.api_url}")
+            print(f"   → Prompt: '{prompt[:50]}...'")
             
             async with aiohttp.ClientSession() as session:
                 async with session.post(
@@ -73,43 +75,57 @@ Make it more compelling, add hooks, and optimize for social media engagement."""
                     timeout=aiohttp.ClientTimeout(total=30)
                 ) as response:
                     
+                    # Log the response status FIRST
+                    print(f"   → HF Response Status: {response.status}")
+                    
                     if response.status == 200:
-                        data = await response.json()
-                        
-                        # HF Inference API can return different formats:
-                        # Format 1: List with dict containing "generated_text"
-                        if isinstance(data, list) and len(data) > 0:
-                            if isinstance(data[0], dict):
-                                result = data[0].get("generated_text", "").strip()
+                        try:
+                            # Parse JSON from response
+                            data = await response.json()
+                            
+                            # HF Inference API can return different formats:
+                            # Format 1: List with dict containing "generated_text"
+                            if isinstance(data, list) and len(data) > 0:
+                                if isinstance(data[0], dict):
+                                    result = data[0].get("generated_text", "").strip()
+                                else:
+                                    result = str(data[0]).strip()
+                            # Format 2: Direct dict with "generated_text"
+                            elif isinstance(data, dict):
+                                result = data.get("generated_text", "").strip()
+                            # Format 3: Direct string
                             else:
-                                result = str(data[0]).strip()
-                        # Format 2: Direct dict with "generated_text"
-                        elif isinstance(data, dict):
-                            result = data.get("generated_text", "").strip()
-                        # Format 3: Direct string
-                        else:
-                            result = str(data).strip()
-                        
-                        if result:
-                            print(f"   ✅ AI Success! Got {len(result)} chars")
-                            return result
-                        else:
-                            print(f"   ⚠️ Empty response: {data}")
-                            return "AI returned empty. Please try again."
+                                result = str(data).strip()
+                            
+                            if result:
+                                print(f"   ✅ AI Success! Got {len(result)} chars")
+                                return result
+                            else:
+                                print(f"   ⚠️ Empty response: {data}")
+                                raise ValueError("AI returned empty response")
+                        except Exception as parse_error:
+                            print(f"   ❌ Failed to parse response: {parse_error}")
+                            error_text = await response.text()
+                            print(f"   → Raw response: {error_text[:200]}")
+                            raise ValueError(f"Failed to parse AI response: {parse_error}")
                     
                     elif response.status == 503:
                         error_text = await response.text()
-                        print(f"   ⚠️ Model loading (503): {error_text}")
-                        return f"🔄 AI model is warming up. This takes ~20 seconds on first use. Please try again in a moment."
+                        print(f"   ⚠️ Model loading (503): {error_text[:200]}")
+                        raise ValueError("🔄 AI model is warming up. This takes ~20 seconds on first use. Please try again in a moment.")
                     
                     else:
+                        # CRITICAL: Don't return error messages as if they're success!
                         error_text = await response.text()
-                        print(f"   ❌ API Error {response.status}: {error_text}")
-                        return f"⚠️ API Error ({response.status}). Using backup hook:\n\n'Why most people fail at this and how you can win.'"
+                        print(f"   ❌ API Error {response.status}: {error_text[:500]}")
+                        raise ValueError(f"HuggingFace API error ({response.status}): {error_text[:200]}")
                         
         except asyncio.TimeoutError:
             print("   ❌ Request timeout")
-            return "⚠️ Request timeout. The AI is busy. Please try again."
+            raise ValueError("⚠️ Request timeout. The AI is busy. Please try again.")
+        except ValueError as ve:
+            # Re-raise ValueError (these are our controlled errors)
+            raise ve
         except Exception as e:
             print(f"   ❌ Generation Error: {type(e).__name__}: {e}")
-            return f"⚠️ Service busy. Here is a backup viral hook for: '{prompt}'\n\n'Why most people fail at this and how you can win.'"
+            raise ValueError(f"⚠️ AI service error: {str(e)}")

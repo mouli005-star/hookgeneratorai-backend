@@ -24,8 +24,13 @@ async def generate_content(request: GenerateRequest, x_fb_token: Optional[str] =
 
         # 2. Generate Content
         print(f"   - Calling AI service for {uid}...")
-        result = await ai_service.generate(request.prompt, request.type)
-        print(f"   - AI success! Result: {result[:20]}...")
+        try:
+            result = await ai_service.generate(request.prompt, request.type)
+            print(f"   ✅ AI success! Result: {result[:50]}...")
+        except ValueError as ve:
+            # ValueError = controlled error from AI service (API errors, timeouts, etc.)
+            print(f"   ❌ AI Service Error: {ve}")
+            raise HTTPException(status_code=503, detail=str(ve))
         
         # 3. Save History
         try:
@@ -43,9 +48,12 @@ async def generate_content(request: GenerateRequest, x_fb_token: Optional[str] =
         
         return GenerateResponse(content=result)
         
+    except HTTPException:
+        # Re-raise HTTP exceptions (already formatted)
+        raise
     except Exception as e:
-        print(f"❌ ERROR: {traceback.format_exc()}")
-        raise HTTPException(status_code=500, detail=str(e))
+        print(f"❌ UNEXPECTED ERROR: {traceback.format_exc()}")
+        raise HTTPException(status_code=500, detail=f"Internal server error: {str(e)}")
 
 @router.get("/history", response_model=HistoryResponse)
 async def get_history(x_fb_token: Optional[str] = Header(None)):
