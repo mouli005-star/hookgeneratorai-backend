@@ -21,9 +21,21 @@ class FirebaseService:
             if sa_json:
                 print("✅ DEBUG: Found service account JSON string in environment.")
                 import json
-                cred_dict = json.loads(sa_json)
-                cred = credentials.Certificate(cred_dict)
-                firebase_admin.initialize_app(cred)
+                try:
+                    # Strip whitespace to avoid "Extra data" errors
+                    sa_json = sa_json.strip()
+                    # If the string starts/ends with quotes (a common mistake), remove them
+                    if sa_json.startswith('"') and sa_json.endswith('"'):
+                        sa_json = sa_json[1:-1].replace('\\"', '"')
+                    
+                    cred_dict = json.loads(sa_json)
+                    cred = credentials.Certificate(cred_dict)
+                    firebase_admin.initialize_app(cred)
+                except Exception as e:
+                    print(f"❌ DEBUG: Failed to parse FIREBASE_SERVICE_ACCOUNT_JSON: {e}")
+                    # Fallback to project ID if JSON is invalid
+                    project_id = os.getenv("FIREBASE_PROJECT_ID", "ai-content-hook-generator")
+                    firebase_admin.initialize_app(options={'projectId': project_id})
             elif sa_path and os.path.exists(sa_path):
                 print(f"✅ DEBUG: Found key path in .env: {sa_path}")
                 cred = credentials.Certificate(sa_path)

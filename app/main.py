@@ -15,6 +15,7 @@ app.add_middleware(
 )
 
 @app.get("/")
+@app.get("/healthz")
 async def health_check():
     return {"status": "healthy", "service": "HookMaster AI"}
 
