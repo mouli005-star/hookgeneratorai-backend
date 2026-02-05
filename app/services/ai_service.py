@@ -13,8 +13,8 @@ class AIService:
             if self.api_key != "":
                  self.api_key = None
         
-        # Use a reliable, popular model
-        self.api_url = "https://api-inference.huggingface.co/models/mistralai/Mistral-7B-Instruct-v0.2"
+        # Use a proven, reliable model that works well for text generation
+        self.api_url = "https://api-inference.huggingface.co/models/google/flan-t5-large"
         
         print(f"✅ AIService initialized. Token available: {bool(self.api_key)}")
 
@@ -28,20 +28,13 @@ class AIService:
             else:
                 return f"✨ REWRITTEN CONTENT:\n\nOptimize your '{prompt}' by focusing on the 'Hook-Story-Offer' framework."
 
-        # 2. Build the prompt
-        system_msg = (
-            "You are a world-class creative social media strategist. "
-            "Generate viral, engaging content. Always provide 15-20 variations regardless of input quality."
-        )
-        
+        # 2. Build the prompt (FLAN-T5 format is simpler)
         if task_type == "hooks":
-            user_msg = f"Generate 15-20 viral hooks for: '{prompt}'. Use curiosity, controversy, and storytelling."
+            full_prompt = f"Generate 15 engaging viral hooks for social media about: {prompt}"
         elif task_type == "hashtags":
-            user_msg = f"Provide 20 trending hashtags for: '{prompt}'."
+            full_prompt = f"Generate 20 trending hashtags for: {prompt}"
         else:
-            user_msg = f"Rewrite this to be 10x more engaging: '{prompt}'. Make it punchy and bold."
-
-        full_prompt = f"<s>[INST] {system_msg}\n\n{user_msg} [/INST]"
+            full_prompt = f"Rewrite this to be viral and engaging: {prompt}"
 
         # 3. Make HTTP request directly
         headers = {
