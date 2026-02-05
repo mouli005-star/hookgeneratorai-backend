@@ -13,8 +13,12 @@ class AIService:
             if self.api_key != "":
                  self.api_key = None
         
-        # Use the NEW HuggingFace router endpoint (api-inference.huggingface.co is deprecated)
-        self.api_url = "https://router.huggingface.co/models/google/flan-t5-large"
+        # Use HuggingFace Inference API endpoint
+        # Option 1: FLAN-T5 (faster, smaller) - uncomment to use
+        # self.api_url = "https://api-inference.huggingface.co/models/google/flan-t5-large"
+        
+        # Option 2: Mistral-7B (better quality, slower) - currently active
+        self.api_url = "https://api-inference.huggingface.co/models/mistralai/Mistral-7B-Instruct-v0.2"
         
         print(f"✅ AIService initialized. Token available: {bool(self.api_key)}")
 
@@ -28,13 +32,19 @@ class AIService:
             else:
                 return f"✨ REWRITTEN CONTENT:\n\nOptimize your '{prompt}' by focusing on the 'Hook-Story-Offer' framework."
 
-        # 2. Build the prompt (FLAN-T5 format is simpler)
+        # 2. Build the prompt (optimized for Mistral instruction model)
         if task_type == "hooks":
-            full_prompt = f"Generate 15 engaging viral hooks for social media about: {prompt}"
+            full_prompt = f"""Generate 15 engaging viral hooks for social media about: {prompt}
+
+Format each hook on a new line, numbered 1-15. Make them attention-grabbing, curiosity-driven, and optimized for maximum engagement."""
         elif task_type == "hashtags":
-            full_prompt = f"Generate 20 trending hashtags for: {prompt}"
+            full_prompt = f"""Generate 20 trending hashtags for: {prompt}
+
+Format as a comma-separated list. Mix popular trending tags with niche-specific ones."""
         else:
-            full_prompt = f"Rewrite this to be viral and engaging: {prompt}"
+            full_prompt = f"""Rewrite the following content to be viral and engaging: {prompt}
+
+Make it more compelling, add hooks, and optimize for social media engagement."""
 
         # 3. Make HTTP request directly
         headers = {
@@ -66,14 +76,26 @@ class AIService:
                     if response.status == 200:
                         data = await response.json()
                         
-                        # HF returns a list with generated_text
+                        # HF Inference API can return different formats:
+                        # Format 1: List with dict containing "generated_text"
                         if isinstance(data, list) and len(data) > 0:
-                            result = data[0].get("generated_text", "").strip()
-                            print(f"   ✅ AI Success! Got {len(result)} chars")
-                            return result if result else "AI returned empty. Please try again."
+                            if isinstance(data[0], dict):
+                                result = data[0].get("generated_text", "").strip()
+                            else:
+                                result = str(data[0]).strip()
+                        # Format 2: Direct dict with "generated_text"
+                        elif isinstance(data, dict):
+                            result = data.get("generated_text", "").strip()
+                        # Format 3: Direct string
                         else:
-                            print(f"   ⚠️ Unexpected response format: {data}")
-                            return "AI returned unexpected format. Please try again."
+                            result = str(data).strip()
+                        
+                        if result:
+                            print(f"   ✅ AI Success! Got {len(result)} chars")
+                            return result
+                        else:
+                            print(f"   ⚠️ Empty response: {data}")
+                            return "AI returned empty. Please try again."
                     
                     elif response.status == 503:
                         error_text = await response.text()
