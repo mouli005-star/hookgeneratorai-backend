@@ -13,33 +13,35 @@ class AIService:
             if self.api_key != "": # Only clear if it's actually set to something suspicious
                  self.api_key = None
         
-        self.model = "meta-llama/Llama-3.2-1B-Instruct"
-        # Use Async client for non-blocking calls
-        self.client = AsyncInferenceClient(token=self.api_key) if self.api_key else None
+        # Using Llama-3.1-8B which is more powerful and reliable on the free API
+        self.model = "meta-llama/Llama-3.1-8B-Instruct"
+        # Use Async client with a longer timeout
+        self.client = AsyncInferenceClient(token=self.api_key, timeout=30) if self.api_key else None
 
     async def generate(self, prompt: str, task_type: str) -> str:
+        # Detect if it's nonsense or repetitive
+        if len(set(prompt.split())) < 2 and len(prompt) > 20:
+             return "Please provide more specific details or a clear topic for better results."
+
         # 1. Handle Mock Mode (No API Key)
         if not self.api_key:
             await asyncio.sleep(0.5)
-            if task_type == "hook":
-                return f"🚀 VIRAL HOOKS FOR: '{prompt}'\n\n1. This is the secret nobody tells you about content creation...\n2. Stop scrolling if you want to double your reach in 24 hours.\n3. I tried this one trick and it changed everything."
-            else:
-                return f"✨ REWRITTEN CONTENT:\n\nOptimize your '{prompt}' by focusing on the 'Hook-Story-Offer' framework."
+            return "⚠️ AI Configuration Error: Missing HF_TOKEN in environment variables."
 
         # 2. Handle Real Mode
         system_msg = (
             "You are a world-class, creative social media strategist and viral copywriter. "
-            "Your goal is to be helpful and imaginative. If the user provides short or nonsense text like 'dfjdf', "
-            "treat it as a creative placeholder and generate content based on what a viral creator would post today. "
-            "DO NOT refuse to generate content. Always provide 15-20 hooks or hashtags regardless of the input."
+            "Generate high-impact, viral-potential content. "
+            "Output formatting: Use clear numbers, bold headings, and emojis. "
+            "Style: Psychological hooks, curiosity gaps, and strong calls to action."
         )
         
         if task_type == "hook":
-            user_msg = f"Generate 15-20 distinct, viral hooks for this content/topic: '{prompt}'. Vary styles: curiosity, controversial, story, and listicles."
+            user_msg = f"Generate 10 viral hooks for: '{prompt}'. Vary styles: curiosity, controversial, story, and listicles."
         elif task_type == "hashtags":
-            user_msg = f"Provide 20 optimized, trending hashtags for: '{prompt}'."
+            user_msg = f"Provide 20 high-reach, relevant hashtags for: '{prompt}'."
         else:
-            user_msg = f"Rewrite this content to be 10x more engaging: '{prompt}'. Make it punchy and bold."
+            user_msg = f"Rewrite this for maximum engagement: '{prompt}'. Use the AIDA framework."
 
         messages = [
             {"role": "system", "content": system_msg},
@@ -50,16 +52,25 @@ class AIService:
             # TRUE ASYNC CHAT COMPLETION
             response = await self.client.chat_completion(
                 messages,
-                max_tokens=1000, 
+                max_tokens=800, 
                 model=self.model,
-                temperature=0.8 # More creative
+                temperature=0.7
             )
             
             if response and hasattr(response, 'choices') and len(response.choices) > 0:
-                return response.choices[0].message.content
+                content = response.choices[0].message.content
+                if content and len(content.strip()) > 10:
+                    return content
             
-            print(f"⚠️ AI returned empty response: {response}")
-            return "AI returned an empty response. Please try again."
+            return "The AI returned a short or empty response. Please try with a more detailed prompt."
+
         except Exception as e:
-            print(f"AI Generation Error: {e}")
-            return f"⚠️ Service busy. Here is a backup viral hook for: '{prompt}'\n\n'Why most people fail at this and how you can win.'"
+            error_str = str(e).lower()
+            print(f"❌ AI Generation Error: {e}")
+            
+            if "model is overloaded" in error_str or "loading" in error_str:
+                return "🚀 The AI model is currently busy. Please wait 10 seconds and click 'Regenerate'—it will work once the model is finished loading!"
+            elif "401" in error_str or "authorization" in error_str:
+                return "🛑 AI Token Error: Your Hugging Face token is invalid. Please check the HF_TOKEN in your Render settings."
+            
+            return f"⚠️ The AI generation service is temporarily unavailable. Error: {str(e)[:50]}..."
