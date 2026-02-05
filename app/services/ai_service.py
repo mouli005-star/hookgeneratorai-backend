@@ -13,12 +13,12 @@ class AIService:
             if self.api_key != "":
                  self.api_key = None
         
-        # Use HuggingFace Inference API endpoint
+        # Use HuggingFace Router API (api-inference.huggingface.co is deprecated)
         # Option 1: FLAN-T5 (faster, smaller) - uncomment to use
-        # self.api_url = "https://api-inference.huggingface.co/models/google/flan-t5-large"
+        # self.api_url = "https://router.huggingface.co/models/google/flan-t5-large"
         
         # Option 2: Mistral-7B (better quality, slower) - currently active
-        self.api_url = "https://api-inference.huggingface.co/models/mistralai/Mistral-7B-Instruct-v0.2"
+        self.api_url = "https://router.huggingface.co/models/mistralai/Mistral-7B-Instruct-v0.2"
         
         print(f"✅ AIService initialized. Token available: {bool(self.api_key)}")
 
